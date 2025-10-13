@@ -1,0 +1,15 @@
+{
+  "name": "github-miner",
+  "version": "1.0.0",
+  "description": "Node.js utility for scanning github repos",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Vassilis Zafeiris",
+  "license": "ISC",
+  "dependencies": {
+    "undici": "^7.16.0"
+  },
+  "type": "module"
+}

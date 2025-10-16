@@ -9,6 +9,8 @@
   "author": "Vassilis Zafeiris",
   "license": "ISC",
   "dependencies": {
+    "dotenv": "^17.2.3",
+    "octokit": "^5.0.3",
     "undici": "^7.16.0"
   },
   "type": "module"

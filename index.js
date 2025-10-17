@@ -64,8 +64,7 @@ async function getPaginatedData(url, projection) {
         catch (error) {
             return null;
         }
-        process.stdout.write('.'); // progress indicator
-        console.log(`Response status: ${response.status}`)
+        
         const parsedData = projection(parseData(response.data));
         data = [...data, ...parsedData];
 
@@ -139,45 +138,41 @@ switch (options.action) {
         const reposToSearch = getReposFromFile();
         const reposCount = reposToSearch.length;
 
-        if (process.env.CURRENT_ROW) {
-            var startRow = parseInt(process.env.CURRENT_ROW);
-            console.log(`Resuming from row ${startRow}`);
-        } else {
-            var startRow = 0;
-        }
+        var startRow = loadProgress();
+        console.log(`Resuming from row ${startRow}`);
+
+        onFileSearchExit(fileSearchResults, startRow > 0);
 
         let currentRow = startRow;
         let retriesCount = 0;
         while (currentRow < reposCount) {
-
-            console.log(`Processing repository ${currentRow + 1} of ${reposCount}: ${reposToSearch[currentRow]}`);
-            const repoFileResults = await processRepo(reposToSearch[currentRow]);
+            let currentRepo = reposToSearch[currentRow];
+            console.log(`Processing ${currentRow}/${reposCount - 1}: ${currentRepo}`);
+            const repoFileResults = await processRepo(currentRepo, currentRow);
 
             if (repoFileResults === null) {
-                waitForTimeout(true);
                 currentRow--;
-                console.log('Retrying repository due to rate limit...');
+                console.log(`Retrying ${currentRepo} due to rate limit...`);
                 retriesCount++;
                 if (retriesCount > 2) {
                     console.log('Too many retries. Exiting.');
+                    saveProgress(currentRow);
                     break;
                 }
+                waitForTimeout(true);
                 continue;
             } else {
                 waitForTimeout(false);
             }
 
             if (repoFileResults.length > 0) {
+                process.stdout.write(' ***');
                 fileSearchResults.push(...repoFileResults);
             }
             currentRow++;
         }
-
-
-        const fileCsvHeader = 'repo, file_path, file_url';
-        fileSearchResults.unshift(fileCsvHeader);
-        fs.writeFileSync('file_results.csv', fileSearchResults.join('\n'));
-        console.log(`Wrote ${fileSearchResults.length - 1} records to file_results.csv`);
+        saveProgress(currentRow);
+        saveFileSearchResults(fileSearchResults, startRow > 0);
         break;
 
     default:
@@ -185,8 +180,40 @@ switch (options.action) {
         process.exit(1);
 }
 
+
+function onFileSearchExit(results, resumed) {
+    process.on('exit', () => {
+        console.log('Exiting. Saving progress...');
+        saveFileSearchResults(results, resumed);
+    });
+
+    // catches ctrl+c event
+    process.on('SIGINT', () => {
+        console.log('Caught interrupt signal. Saving progress...');
+        saveFileSearchResults(results, resumed);
+        process.exit();
+    });
+}
+
+function saveFileSearchResults(results, resumed) {
+    const csvHeader = 'repo, file_path';
+    if (resumed) {
+        results.unshift(csvHeader);
+    }
+    fs.writeFileSync('file_search_results.csv', results.join('\n'));
+    console.log(`\nWrote ${results.length - 1} records to file_search_results.csv`);
+}
+
 function saveProgress(row) {
     fs.writeFileSync('progress.txt', row);
+}
+
+function loadProgress() {
+    if (fs.existsSync('progress.txt')) {
+        const row = fs.readFileSync('progress.txt', 'utf-8');
+        return parseInt(row);
+    }
+    return 0;
 }
 
 async function waitForTimeout(rateLimitReset) {
@@ -194,21 +221,21 @@ async function waitForTimeout(rateLimitReset) {
     await new Promise(resolve => setTimeout(resolve, timeout));
 }
 
-async function processRepo(repo) {
+async function processRepo(repo, repoIdx) {
     const query = `repo:${repo} ${options.query} `;
     const fileSearchUrl = `/search/code?per_page=100&page=1&q=${encodeURIComponent(query)}`;
     console.log(`Repository: ${repo}`);
 
     const repoFileResults = await getPaginatedData(fileSearchUrl, (items) => {
         return items.map(item => {
-            return `${item.repository.full_name}, ${item.path}`;
+            return `${repoIdx},${item.repository.full_name},${item.path}`;
         });
     });
 
     return repoFileResults;
 }
 
-function getReposFromFile()() {
+function getReposFromFile() {
     return fs.readFileSync(options.repofile, 'utf-8')
         .split('\n').filter(line => line.trim() !== '')
         .map(line => line.split(',')[0].trim());

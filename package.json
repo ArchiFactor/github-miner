@@ -9,6 +9,7 @@
   "author": "Vassilis Zafeiris",
   "license": "ISC",
   "dependencies": {
+    "command-line-args": "^6.0.1",
     "dotenv": "^17.2.3",
     "octokit": "^5.0.3",
     "undici": "^7.16.0"

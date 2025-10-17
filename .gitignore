@@ -1,3 +1,6 @@
+*curl.sh
+progress.txt
+*.csv
 # Logs
 logs
 *.log

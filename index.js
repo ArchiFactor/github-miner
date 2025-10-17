@@ -28,7 +28,6 @@ const optionDefinitions = [
 ]
 
 import commandLineArgs from 'command-line-args'
-import { time } from "console";
 const options = commandLineArgs(optionDefinitions)
 
 const octokit = new Octokit({});
@@ -169,6 +168,10 @@ switch (options.action) {
                 process.stdout.write(' ***');
                 fileSearchResults.push(...repoFileResults);
             }
+            if (fileSearchResults.length % 5 === 0 && fileSearchResults.length > 0) {
+                saveFileSearchResults(fileSearchResults, startRow > 0);
+                fileSearchResults.length = 0;
+            }
             currentRow++;
         }
         saveProgress(currentRow);
@@ -182,11 +185,6 @@ switch (options.action) {
 
 
 function onFileSearchExit(results, resumed) {
-    process.on('exit', () => {
-        console.log('Exiting. Saving progress...');
-        saveFileSearchResults(results, resumed);
-    });
-
     // catches ctrl+c event
     process.on('SIGINT', () => {
         console.log('Caught interrupt signal. Saving progress...');
@@ -197,10 +195,10 @@ function onFileSearchExit(results, resumed) {
 
 function saveFileSearchResults(results, resumed) {
     const csvHeader = 'repo, file_path';
-    if (resumed) {
+    if (!resumed) {
         results.unshift(csvHeader);
     }
-    fs.writeFileSync('file_search_results.csv', results.join('\n'));
+    fs.appendFileSync('file_search_results.csv', results.join('\n'));
     console.log(`\nWrote ${results.length - 1} records to file_search_results.csv`);
 }
 

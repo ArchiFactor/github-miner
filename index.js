@@ -198,7 +198,7 @@ function saveFileSearchResults(results, resumed) {
     if (!resumed) {
         results.unshift(csvHeader);
     }
-    fs.appendFileSync('file_search_results.csv', results.join('\n'));
+    fs.appendFileSync('file_search_results.csv', '\n'+results.join('\n'));
     console.log(`\nWrote ${results.length - 1} records to file_search_results.csv`);
 }
 

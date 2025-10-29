@@ -183,8 +183,8 @@ function saveFileSearchResults(results, resumed) {
     if (!resumed) {
         results.unshift(csvHeader);
     }
-    fs.appendFileSync('file_search_results.csv', '\n'+results.join('\n'));
-    console.log(`\nWrote ${results.length - 1} records to file_search_results.csv`);
+    fs.appendFileSync('file_search_results.csv', '\n' + results.join('\n'));
+    console.log(`\nWrote ${results.length} records to file_search_results.csv`);
 }
 
 function saveProgress(row) {

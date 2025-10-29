@@ -16,8 +16,8 @@ const optionDefinitions = [
         required: true
     },
     {
-        name: 'timeout', alias: 't', type: Number,
-        description: 'The timeout (in ms) between each API call to avoid rate limiting',
+        name: 'filter', alias: 'e', type: String,
+        description: 'Keywords that should not be present in file paths resulting from file search actions',
         required: false
     },
     {
@@ -63,7 +63,7 @@ async function getPaginatedData(url, projection) {
         catch (error) {
             return null;
         }
-        
+
         const parsedData = projection(parseData(response.data));
         data = [...data, ...parsedData];
 
@@ -143,7 +143,7 @@ switch (options.action) {
         onFileSearchExit(fileSearchResults, startRow > 0);
 
         let currentRow = startRow;
-        
+
         while (currentRow < reposCount) {
             let currentRepo = reposToSearch[currentRow];
             console.log(`Processing ${currentRow}/${reposCount - 1}: ${currentRepo}`);
@@ -161,6 +161,7 @@ switch (options.action) {
         }
         saveProgress(currentRow);
         saveFileSearchResults(fileSearchResults, startRow > 0);
+        filterFileSearchResults(options.filter, 'file_search_results.csv', 'filtered-search-results.csv')
         break;
 
     default:
@@ -168,6 +169,22 @@ switch (options.action) {
         process.exit(1);
 }
 
+function filterFileSearchResults(keywords, inputCSVFile, outputCSVFile) {
+    if (keywords === undefined || keywords.length === 0) {
+        return
+    }
+    let keywordsList = keywords.split(",").map(keyword => keyword.trim())
+    console.log(keywordsList)
+    let inputRows = readCSV(inputCSVFile)
+    let exclusionRegEx = new RegExp(keywordsList.join('|'))
+    console.log(exclusionRegEx)
+    // check file path (column 3) for the pattern and exclude it
+    //console.log(exclusionRegEx.test('packages/next/src/compiled/react-server-dom-webpack/package.json'))
+    let filteredRows = inputRows.filter(row => !exclusionRegEx.test(row[2]))
+
+    console.log(filteredRows.length)
+    fs.writeFileSync(outputCSVFile, filteredRows.join('\n'));
+}
 
 function onFileSearchExit(results, resumed) {
     // catches ctrl+c event
@@ -199,11 +216,6 @@ function loadProgress() {
     return 0;
 }
 
-async function waitForTimeout(rateLimitReset) {
-    var timeout = rateLimitReset ? RATE_LIMIT_TIMEOUT : options.timeout;
-    await new Promise(resolve => setTimeout(resolve, timeout));
-}
-
 async function processRepo(repo, repoIdx) {
     const query = `repo:${repo} ${options.query} `;
     const fileSearchUrl = `/search/code?per_page=100&page=1&q=${encodeURIComponent(query)}`;
@@ -222,5 +234,12 @@ function getReposFromFile() {
     return fs.readFileSync(options.repofile, 'utf-8')
         .split('\n').filter(line => line.trim() !== '')
         .map(line => line.split(',')[0].trim());
+}
+
+function readCSV(file) {
+    return fs.readFileSync(file, 'utf-8')
+        .split('\n').filter(line => line.trim() !== '')
+        .map(line => line.split(','))
+        .filter(row => row.length > 0)
 }
 

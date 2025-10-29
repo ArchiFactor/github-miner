@@ -203,7 +203,7 @@ function saveFileSearchResults(results, resumed) {
 }
 
 function saveProgress(row) {
-    fs.writeFileSync('progress.txt', row);
+    fs.writeFileSync('progress.txt', "" + row);
 }
 
 function loadProgress() {

@@ -143,32 +143,17 @@ switch (options.action) {
         onFileSearchExit(fileSearchResults, startRow > 0);
 
         let currentRow = startRow;
-        let retriesCount = 0;
+        
         while (currentRow < reposCount) {
             let currentRepo = reposToSearch[currentRow];
             console.log(`Processing ${currentRow}/${reposCount - 1}: ${currentRepo}`);
             const repoFileResults = await processRepo(currentRepo, currentRow);
 
-            if (repoFileResults === null) {
-                currentRow--;
-                console.log(`Retrying ${currentRepo} due to rate limit...`);
-                retriesCount++;
-                if (retriesCount > 2) {
-                    console.log('Too many retries. Exiting.');
-                    saveProgress(currentRow);
-                    break;
-                }
-                waitForTimeout(true);
-                continue;
-            } else {
-                waitForTimeout(false);
-            }
-
             if (repoFileResults.length > 0) {
                 process.stdout.write(' ***');
                 fileSearchResults.push(...repoFileResults);
             }
-            if (fileSearchResults.length % 5 === 0 && fileSearchResults.length > 0) {
+            if (fileSearchResults.length / 50 === 0 && fileSearchResults.length > 0) {
                 saveFileSearchResults(fileSearchResults, startRow > 0);
                 fileSearchResults.length = 0;
             }

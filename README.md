@@ -1,3 +1,4 @@
+# Github Miner Utility
 
 Simple utility to filter a list of github repositories based on the content of specific files.
 The list of repositories given as input is provided as parameter `--repofile`.

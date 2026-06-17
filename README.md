@@ -22,9 +22,9 @@ created in the project root directory.
 
 Export the GITHUB_KEY environment variable with your Github key and run the `search-files` action (see below).
 
-# Search for repositories with specific files and content
+## Search for repositories with specific files and content
 
-## Example 1: Search repos with specific contents in package.json
+### Example 1: Search repos with specific contents in package.json
 
 For instance, search repos containing `react` or `react-dom` in file package.json.
 Excluded directories for search are `node_modules` and `examples`.
@@ -33,11 +33,11 @@ Excluded directories for search are `node_modules` and `examples`.
 node index.js --action=search-files --query='\"react\" \"react-dom\" filename:package.json -path:node_modules -path:examples in:file'  --repofile=repos.csv
 `
 
-## Example 2: Search repos with specific contents in pom.xml
+### Example 2: Search repos with specific contents in pom.xml
 
 WIP
 
-## Notes for further repo exclusion (not implemented)
+### Notes for further repo exclusion (not implemented)
 
 Exclude entries which contain the following keywords in package.json path
 `template, test, example, fixture, benchmark, integration, plugin, demo, packages, npm-package, playground, solution, sandbox, tutorial, sample, curriculum, boilerplate, exercise, assignment,sketches`

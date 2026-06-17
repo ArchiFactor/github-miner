@@ -153,7 +153,8 @@ switch (options.action) {
                 process.stdout.write(' ***');
                 fileSearchResults.push(...repoFileResults);
             }
-            if (fileSearchResults.length / 50 === 0 && fileSearchResults.length > 0) {
+            // Sync to disk 10 latest results
+            if (fileSearchResults.length % 10 === 0 && fileSearchResults.length > 0) {
                 saveFileSearchResults(fileSearchResults, startRow > 0);
                 fileSearchResults.length = 0;
             }

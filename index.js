@@ -3,6 +3,8 @@ import 'dotenv/config';
 import fs from 'fs';
 
 const RATE_LIMIT_TIMEOUT = 60000; // 1 minute
+const MAX_RATE_LIMIT_RETRIES = 5;
+let headerWritten = false;
 
 const optionDefinitions = [
     {
@@ -47,12 +49,12 @@ async function getPaginatedData(url, projection) {
     const nextPattern = /(?<=<)([\S]*)(?=>; rel="Next")/i;
     let pagesRemaining = true;
     let data = [];
+    let retries = 0;
 
     while (pagesRemaining) {
         let response = null;
         try {
             response = await octokit.request(`GET ${url}`, {
-                per_page: 100,
                 headers: {
                     "X-GitHub-Api-Version":
                         "2022-11-28",
@@ -61,6 +63,21 @@ async function getPaginatedData(url, projection) {
             });
         }
         catch (error) {
+            const headers = error.response?.headers ?? {};
+            console.log(`\nRequest failed with status ${error.status}: ${error.message}`);
+            console.log(`x-ratelimit-remaining: ${headers['x-ratelimit-remaining']}, x-ratelimit-reset: ${headers['x-ratelimit-reset']}, retry-after: ${headers['retry-after']}`);
+            if (error.status === 403 && retries < MAX_RATE_LIMIT_RETRIES) {
+                retries++;
+                let waitMs = RATE_LIMIT_TIMEOUT;
+                if (headers['retry-after']) {
+                    waitMs = Number(headers['retry-after']) * 1000;
+                } else if (headers['x-ratelimit-reset']) {
+                    waitMs = Math.max(Number(headers['x-ratelimit-reset']) * 1000 - Date.now(), 0) + 2000;
+                }
+                console.log(`Rate limit hit. Waiting ${Math.round(waitMs / 1000)}s before retrying (attempt ${retries}/${MAX_RATE_LIMIT_RETRIES})...`);
+                await new Promise(resolve => setTimeout(resolve, waitMs));
+                continue;
+            }
             return null;
         }
 
@@ -149,14 +166,17 @@ switch (options.action) {
             console.log(`Processing ${currentRow}/${reposCount - 1}: ${currentRepo}`);
             const repoFileResults = await processRepo(currentRepo, currentRow);
 
-            if (repoFileResults.length > 0) {
+            if (repoFileResults === null) {
+                console.log(`Skipping ${currentRepo} after repeated request failures.`);
+            } else if (repoFileResults.length > 0) {
                 process.stdout.write(' ***');
                 fileSearchResults.push(...repoFileResults);
             }
             // Sync to disk 10 latest results
-            if (fileSearchResults.length % 10 === 0 && fileSearchResults.length > 0) {
+            if (fileSearchResults.length >= 10) {
                 saveFileSearchResults(fileSearchResults, startRow > 0);
                 fileSearchResults.length = 0;
+                saveProgress(currentRow + 1);
             }
             currentRow++;
         }
@@ -197,10 +217,14 @@ function onFileSearchExit(results, resumed) {
 }
 
 function saveFileSearchResults(results, resumed) {
+    if (results.length === 0) {
+        return;
+    }
     const csvHeader = 'repo, file_path';
-    if (!resumed) {
+    if (!resumed && !headerWritten) {
         results.unshift(csvHeader);
     }
+    headerWritten = true;
     fs.appendFileSync('file_search_results.csv', '\n' + results.join('\n'));
     console.log(`\nWrote ${results.length} records to file_search_results.csv`);
 }
